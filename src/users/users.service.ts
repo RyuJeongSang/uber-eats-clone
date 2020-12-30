@@ -77,20 +77,18 @@ export class UserSerVice {
     } catch (error) {
       return {
         ok: false,
-        error,
+        error: 'cant log in',
       };
     }
   }
 
   async findById(id: number): Promise<UserProfileOutput> {
     try {
-      const user = await this.users.findOne({ id });
-      if (user) {
-        return {
-          ok: true,
-          user,
-        };
-      }
+      const user = await this.users.findOneOrFail({ id });
+      return {
+        ok: true,
+        user,
+      };
     } catch (error) {
       return { ok: false, error: 'User Not Found' };
     }
@@ -102,16 +100,14 @@ export class UserSerVice {
   ): Promise<EditProfileOutput> {
     try {
       const user = await this.users.findOne(userId);
-      const exists = await this.users.findOne({ email });
-      if (exists) {
-        return {
-          ok: false,
-          error: 'Email is already used.',
-        };
+      const emailMatch = await this.users.findOne({ email });
+      if (emailMatch) {
+        return { ok: false, error: 'Email already used' };
       }
       if (email) {
         user.email = email;
         user.verified = false;
+        await this.verifications.delete({ user: { id: user.id } });
         const verification = await this.verifications.save(
           this.verifications.create({ user }),
         );
@@ -143,7 +139,7 @@ export class UserSerVice {
       }
       return { ok: false, error: 'Verification not found.' };
     } catch (error) {
-      return { ok: false, error };
+      return { ok: false, error: 'Could not verified Email' };
     }
   }
 }
