@@ -13,14 +13,14 @@ export class Payment extends CoreEntity {
   transactionId: string;
 
   @Field((type) => User, { nullable: true })
-  @ManyToOne((type) => User, (user) => user.payments)
+  @ManyToOne((type) => User, (user) => user.payments, { onDelete: 'CASCADE' })
   user?: User;
 
   @RelationId((payment: Payment) => payment.user)
   userId: number;
 
   @Field((type) => Restaurant)
-  @ManyToOne((type) => Restaurant)
+  @ManyToOne((type) => Restaurant, { onDelete: 'CASCADE' })
   restaurant: Restaurant;
 
   @RelationId((payment: Payment) => payment.restaurant)

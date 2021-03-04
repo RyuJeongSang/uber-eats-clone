@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { PAGE_SIZE } from 'src/common/common.constants';
 import { User } from 'src/users/entities/user.entity';
 import { ILike, Repository } from 'typeorm';
 import { AllCategoriesOutput } from './dtos/all-categories.dto';
@@ -19,6 +20,11 @@ import {
   EditRestaurantInput,
   EditRestaurantOutput,
 } from './dtos/edit-restaurant.dto';
+import {
+  MyRestaurantInput,
+  MyRestaurantOutput,
+} from './dtos/my-restaurant.dto';
+import { MyRestaurantsOutput } from './dtos/my-restaurants.dto';
 import { RestaurantInput, RestaurantOutput } from './dtos/restaurant.dto';
 import { RestaurantsInput, RestaurantsOutput } from './dtos/restaurants.dto';
 import {
@@ -54,6 +60,7 @@ export class RestaurantService {
       await this.restaurants.save(newRestaurant);
       return {
         ok: true,
+        restaurantId: newRestaurant.id,
       };
     } catch {
       return {
@@ -169,8 +176,8 @@ export class RestaurantService {
         where: {
           category,
         },
-        take: 25,
-        skip: (page - 1) * 25,
+        take: PAGE_SIZE,
+        skip: (page - 1) * PAGE_SIZE,
         order: {
           isPromoted: 'DESC',
         },
@@ -180,7 +187,7 @@ export class RestaurantService {
         ok: true,
         restaurants,
         category,
-        totalPages: Math.ceil(totalResults / 25),
+        totalPages: Math.ceil(totalResults / PAGE_SIZE),
       };
     } catch {
       return {
@@ -195,16 +202,17 @@ export class RestaurantService {
   }: RestaurantsInput): Promise<RestaurantsOutput> {
     try {
       const [results, totalResults] = await this.restaurants.findAndCount({
-        skip: (page - 1) * 25,
-        take: 25,
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
         order: {
           isPromoted: 'DESC',
         },
+        relations: ['category'],
       });
       return {
         ok: true,
         results,
-        totalPages: Math.ceil(totalResults / 25),
+        totalPages: Math.ceil(totalResults / PAGE_SIZE),
         totalResults,
       };
     } catch {
@@ -249,8 +257,8 @@ export class RestaurantService {
         where: {
           name: ILike(`%${query}%`),
         },
-        skip: (page - 1) * 25,
-        take: 25,
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
       });
       if (!restaurants) {
         return {
@@ -262,12 +270,60 @@ export class RestaurantService {
         ok: true,
         restaurants,
         totalResults,
-        totalPages: Math.ceil(totalResults / 25),
+        totalPages: Math.ceil(totalResults / PAGE_SIZE),
       };
     } catch {
       return {
         ok: false,
         error: 'Could not search restaurants',
+      };
+    }
+  }
+
+  async myRestaurants(owner: User): Promise<MyRestaurantsOutput> {
+    try {
+      const restaurants = await this.restaurants.find({ owner });
+      if (!restaurants) {
+        return {
+          ok: false,
+          error: 'Restaurants not found',
+        };
+      }
+      return {
+        restaurants,
+        ok: true,
+      };
+    } catch {
+      return {
+        ok: false,
+        error: 'Could not find restaurants',
+      };
+    }
+  }
+
+  async myRestaurant(
+    owner: User,
+    { id }: MyRestaurantInput,
+  ): Promise<MyRestaurantOutput> {
+    try {
+      const restaurant = await this.restaurants.findOne(
+        { owner, id },
+        { relations: ['menu', 'orders'] },
+      );
+      if (!restaurant) {
+        return {
+          ok: false,
+          error: 'Could not found restaurant',
+        };
+      }
+      return {
+        restaurant,
+        ok: true,
+      };
+    } catch {
+      return {
+        ok: false,
+        error: 'Could not fount restaurant',
       };
     }
   }
